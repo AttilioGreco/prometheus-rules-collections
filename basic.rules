@@ -1,0 +1,71 @@
+groups:
+- name: default
+  rules:
+
+  - alert: InstanceDown
+    expr: up == 0
+    for: 30s
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.instance }} down"
+      description: "{{ $labels.job }} of {{ $labels.instance }} of has been down for more than 30 seconds."
+
+  - alert: NodeDiskRunningFullIn24Hours
+    expr: predict_linear(node_filesystem_free{device=~"/dev/.*",mountpoint!~"/var/lib/docker.*"}[6h], 24 * 3600) < 0 and ON(device) (node_filesystem_avail / node_filesystem_size) * 100 < 15
+    for: 15m
+    labels:
+      severity: warning
+    annotations: 
+      summary: "Disk will be Full within 24 hours"
+      description: "Mount point {{ $labels.mountpoint }} on device {{ $labels.device }} on node {{ $labels.instance }} will be full within 24 hours."
+
+  - alert: NodeDiskRunningFullIn2Hours
+    expr: predict_linear(node_filesystem_free{device=~"/dev/.*",mountpoint!~"/var/lib/docker.*"}[3h], 2 * 3600) < 0 and ON(device) (node_filesystem_avail / node_filesystem_size) * 100 < 15
+    for: 10m
+    labels:
+      severity: critical
+    annotations: 
+      summary: "Disk will be Full within 2 hours"
+      description: "Mount point {{ $labels.mountpoint }} on device {{ $labels.device }} on instance {{ $labels.instance }} will be full within the next 2 hours."
+
+  - alert: NodeDiskRunningFull
+    expr: node_filesystem_avail{mountpoint!~"/var/lib/docker.*"} / node_filesystem_size{mountpoint!~"/var/lib/docker.*"} * 100 < 3 
+    for: 10m
+    labels:
+      severity: critical
+    annotations: 
+      summary: "Disk Full at {{ $value }} %"
+      description: "Mount point {{ $labels.mountpoint }} on device {{ $labels.device }} on instance {{ $labels.instance }} will be full within the next 2 hours."
+
+  - alert: NodeDiskRunningFull_at_15
+    expr: node_filesystem_avail{mountpoint!~"/var/lib/docker.*"} / node_filesystem_size{mountpoint!~"/var/lib/docker.*"} * 100 < 15
+    for: 30s 
+    labels:
+      severity: info
+    annotations: 
+      summary: "Disk full at {{ $value }}%"
+      description: "Mount point {{ $labels.mountpoint }} on device {{ $labels.device }} on instance {{ $labels.instance }} is full {{ $value }}%"
+
+# +---------------------------------------------------------------------------+
+# | Check MountPoint                                                          |
+# | Example: Check gluster MountPoint in web server                           |
+# +---------------------------------------------------------------------------+
+
+#  - alert: CheckGlusterMountPoint
+#    expr: ((node_filesystem_size{mountpoint="/mnt/storage",instance=~"web-.*"}+1) or on ( instance) up{instance=~"web-.*"} * 0) == 0 
+#    for: 3m
+#    labels:
+#      severity: critical
+#    annotations: 
+#      summary: "Mount Point /mnt/storage not found"
+#      description: "Mount Point /mnt/storage is not found in instance {{ $labels.instance }}"
+
+  - alert: ram_full_more_than_90
+    expr: 100 - ((node_memory_MemAvailable{instance!~"mysql-.*|bastion"} * 100) / node_memory_MemTotal{instance!~"mysql-.*|bastion"}) > 90
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "ram full {{ humanize $value }}%"
+      description: "{{ $labels.instance }} ram is full at {{ $value | humanize }}%."

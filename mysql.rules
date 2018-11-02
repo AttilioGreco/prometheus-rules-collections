@@ -1,0 +1,56 @@
+groups:
+- name: mysql
+  rules:
+  - alert: mysql_slave_status_slave_sql_is_not_running
+    expr: mysql_slave_status_slave_sql_running == 0
+    for: 2m
+    labels:
+      severity: warning
+    annotations: 
+      summary: "SQL thread not running"
+      description: "SQL thread is not running on instance {{$labels.instance}}"
+
+  - alert: mysql_slave_status_slave_io_isnot_running
+    expr: mysql_slave_status_slave_io_running == 0
+    for: 2m
+    labels:
+      severity: warning
+    annotations: 
+      summary: "Mysql IO thread is not running"
+      description: "MySQL IO thread is not running on instance {{$labels.instance}}"
+
+  - alert: mysql_slave_read_only
+    expr: ((mysql_global_variables_read_only{instance=~"mysql-.*"}) and on(instance) mysql_slave_status_slave_io_running) < 1
+    for: 15m
+    labels:
+      severity: warning
+    annotations: 
+      summary: "Slave is not in Read Only"
+      description: "Mysql Slave is not read only mode, on instance {{$labels.instance}}"
+
+  - alert: mysql_slave_lag
+    expr: mysql_slave_status_seconds_behind_master > 300
+    for: 2m
+    labels:
+      severity: warning
+    annotations: 
+      summary: "Slave LAG"
+      description: "Mysql salve on instance {{ $labels.instance }} have {{ $value }} seconds of lags"
+  
+  - alert: NO_slave_running
+    expr: count(mysql_slave_status_master_server_id) BY (instance,master_host) < 1
+    for: 1m
+    labels:
+      severity: critical
+    annotations: 
+      summary: "Slave is disconnected"
+      description: "Mysql Slave {{$labels.instance}} is not connected to Mysql Master {{$labels.master_host}}"
+
+  - alert: mysql_ram_full_more_than_98
+    expr: 100 - ((node_memory_MemAvailable{instance=~"mysql-.*"} * 100) / node_memory_MemTotal{instance=~"mysql-.*"}) > 98
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "ram full {{ humanize $value }}%"
+      description: "Ram used on {{ $labels.instance }} is {{ $value | humanize }}%."
